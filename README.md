@@ -13,6 +13,7 @@ Notes:
 - The Hut tower which created these AntiBalloons costs $250
 - Both the hut and balloon have their own custom texture
 - When a tower is placed, the AntiBalloon will spawn on the nearest "Point," which are the points in the path where the path turns. A line is draw to show which tower is creating an AntiBalloon, and where it's being created.
+- There is a readme file that said to make this as an extension, but I don't know what an extension is or how to make one, so I just added the entire code. Hopefully that's okay!
 - This is my first time using Processing, so the code isn't very clean.
 
 Enjoy!
