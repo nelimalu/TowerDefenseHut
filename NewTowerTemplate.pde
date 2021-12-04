@@ -36,8 +36,8 @@ int[] makeTowerData(int towerID) {
   } else if (towerID == slow) {
     return new int[] {
       //EDIT VALUES HERE 
-      30, // Cooldown between next projectile
-      30, // Max cooldown
+      60, // Cooldown between next projectile
+      60, // Max cooldown
       towerVisions[2], // Tower Vision
       2 // Projectile ID
     };
@@ -64,24 +64,38 @@ class AntiBalloon {
   float spawn_dist;
   
   AntiBalloon(float distanceTravelled) {
-    println("Antiballoon created!");
     this.distanceTravelled = distanceTravelled;
   }
   
   void draw() {
     PVector location = getLocation(this.distanceTravelled);
+    /*
     ellipseMode(CENTER);
     strokeWeight(0);
     stroke(0);
     fill(#000000);
     ellipse(location.x, location.y, balloonRadius, balloonRadius);
+    */
+    drawAntiballoon(location.x, location.y);
   }
   
 }
 
 void updateAntiBalloons() {
-  for (AntiBalloon balloon : antiBalloons) {
-    balloon.draw(); 
+  for (int i = 0; i < antiBalloons.size(); i++) {
+    antiBalloons.get(i).draw(); 
+    antiBalloons.get(i).distanceTravelled -= 1;
+    if (antiBalloons.get(i).distanceTravelled <= 0) {
+      antiBalloons.remove(antiBalloons.get(i));
+    }
+    for (int j = 0; j < balloons.size(); j++) {
+      if (Math.abs(balloons.get(j)[0] - antiBalloons.get(i).distanceTravelled) < 6) {
+         antiBalloons.remove(antiBalloons.get(i));
+         balloons.remove(balloons.get(j));
+         increaseBalance(rewardPerBalloon);
+         break;
+      }
+    }
   }
 }
 
@@ -89,7 +103,7 @@ float getSpawnDist(ArrayList<PVector> points, PVector start) {
     ArrayList<Float> distances = new ArrayList<Float>();
     float smallestDist = 999999999;
     float smallestArrayLocation = 0;
-    for (int i = 0; i < points.size() - 1; i++) {
+    for (int i = 0; i < points.size(); i++) {
        if (i < points.size() - 1)
          distances.add(points.get(i).dist(points.get(i+1)));
        if (points.get(i).dist(start) < smallestDist) {
@@ -97,13 +111,19 @@ float getSpawnDist(ArrayList<PVector> points, PVector start) {
          smallestArrayLocation = i;
        }
     }
+    /*
+    println(distances);
+    println(smallestDist);
+    println(smallestArrayLocation);
+    println("");
+    */
     
     float travelled = 0;
     for (int i = 0; i < smallestArrayLocation; i++) {
       travelled += distances.get(i);
     }
   
-    return travelled + smallestDist;
+    return travelled;
   }
 
 
@@ -142,6 +162,12 @@ void drawTowerWithRotation(float xPos, float yPos, color colour, PVector targetL
 void drawHut(float x, float y) {
   imageMode(CENTER);
   image(hut_image, x, y);
+  noFill();
+}
+
+void drawAntiballoon(float x, float y) {
+  imageMode(CENTER);
+  image(antiballoon_image, x, y);
   noFill();
 }
 
@@ -233,6 +259,7 @@ void setup() {
   size(800, 500);
   loadHeartIcon();
   loadHutIcon();
+  loadAntiBalloonIcon();
   initDragAndDrop();
   initPath();
   createFirstWave();
@@ -382,6 +409,7 @@ boolean atEndOfPath(float travelDistance) {
 int health = 99999999;  //variable to track user's health
 PImage heart;
 PImage hut_image;
+PImage antiballoon_image;
 
 void loadHeartIcon() {
   heart = loadImage("heart.png");
@@ -389,6 +417,10 @@ void loadHeartIcon() {
 
 void loadHutIcon() {
   hut_image = loadImage("hut.png");
+}
+
+void loadAntiBalloonIcon() {
+  antiballoon_image = loadImage("antiballoon.png");
 }
 
 //method to draw a healthbar at the bottom right of the screen
@@ -505,6 +537,7 @@ PVector[] dragAndDropLocations = {new PVector(650, 50), new PVector(700, 50), ne
 ArrayList<PVector> towers; // Towers that are placed down
 ArrayList<Float> hutSpawns = new ArrayList<Float>();
 ArrayList<AntiBalloon> antiBalloons = new ArrayList<AntiBalloon>();
+int huts_passed;
 
 
 final int towerSize = 25;
@@ -555,14 +588,15 @@ void handleDrop(int towerID) { // Will be called whenever a tower is placed down
   } else if (legalDrop(towerID)) {
     towers.add(dragAndDropLocations[towerID].copy());
     towerData.add(makeTowerData(towerID));
-    dragAndDropLocations[towerID] = originalLocations[towerID];
     held[towerID] = false;
     purchaseTower(towerPrice[towerID]);
     println("Dropped for the " + (++count) + "th time.");
     
     if (towerID == 2) {
-      hutSpawns.add(getSpawnDist(points, dragAndDropLocations[towerID]));
+      hutSpawns.add(getSpawnDist(points, dragAndDropLocations[towerID].copy()));
     }
+    
+    dragAndDropLocations[towerID] = originalLocations[towerID];
     
   }
 }
@@ -839,29 +873,28 @@ PVector track(PVector towerLocation, int vision) {
 
 // Handles all projectile creation
 void handleProjectiles() {
-  int huts_passed = -1;
+  huts_passed = -1;
   for (int i = 0; i < towers.size(); i++) {
     PVector location = towers.get(i);
     int[] data = towerData.get(i);
     data[cooldownRemaining]--;
     PVector balloon = track(location, data[towerVision]);
-
+    
     // Cooldown is 0 and there is a balloon that the tower tracks shoots a projectile
-    if (data[cooldownRemaining] <= 0 && balloon != null) {
+    if (data[cooldownRemaining] <= 0) {
       data[cooldownRemaining] = data[maxCooldown]; // Resets the cooldown
 
-      PVector toMouse = new PVector(balloon.x - location.x, balloon.y - location.y);
-
-      if (data[projectileType] == def) {
+      if (data[projectileType] == def && balloon != null) {
+        PVector toMouse = new PVector(balloon.x - location.x, balloon.y - location.y);
         final int speed = 24, damage = 6, pierce = 1, thickness = 2, maxTravelDist = 500;
         PVector unitVector = PVector.div(toMouse, toMouse.mag());
 
         PVector velocity = PVector.mult(unitVector, speed);
         createProjectile(location, velocity, damage, pierce, maxTravelDist, thickness, def);
         // Default type
-      } else if (data[projectileType] == eight) {
+      } else if (data[projectileType] == eight && balloon != null) {
         // Spread in 8
-        println("bruh omegalul");
+        PVector toMouse = new PVector(balloon.x - location.x, balloon.y - location.y);
         for (int j = 0; j < 8; j++) {
           final int speed = 18, damage = 4, pierce = 2, thickness = 2, maxTravelDist = 150;
           float angle = (PI * 2) * j / 8;
@@ -870,11 +903,19 @@ void handleProjectiles() {
           PVector velocity = PVector.mult(unitVector, speed).rotate(angle);
           createProjectile(location, velocity, damage, pierce, maxTravelDist, thickness, eight);
         }
-      } else if (data[projectileType] == slow) {
-        // anti balloon hut
-        huts_passed++;
-        println("we got here lol");
+      }
+    }
+    
+    if (data[projectileType] == slow) {
+      // anti balloon hut
+      huts_passed++;
+      if (data[cooldownRemaining] <= 1) {
         antiBalloons.add(new AntiBalloon(hutSpawns.get(huts_passed)));
+        PVector loc = getLocation(hutSpawns.get(huts_passed));
+        strokeWeight(5);
+        stroke(#FF0000);
+        line(location.x, location.y, loc.x, loc.y);
+        data[cooldownRemaining] = data[maxCooldown];
       }
     }
   }
