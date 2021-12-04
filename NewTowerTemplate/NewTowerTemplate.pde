@@ -406,7 +406,7 @@ boolean atEndOfPath(float travelDistance) {
  This number decreases if balloons pass the end of the path (offscreen), currentely 11 since there are 11 balloons.
  PImage heart: the heart icon to display with the healthbar.
  */
-int health = 99999999;  //variable to track user's health
+int health = 11;  //variable to track user's health
 PImage heart;
 PImage hut_image;
 PImage antiballoon_image;
